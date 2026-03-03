@@ -1,0 +1,11 @@
+CREATE DATABASE IF NOT EXISTS device_db;
+USE device_db;
+
+CREATE TABLE IF NOT EXISTS devices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(100) NOT NULL,
+    serial_number VARCHAR(100) NOT NULL UNIQUE,
+    status VARCHAR(50) NOT NULL,
+    last_maintained DATE NOT NULL
+);
