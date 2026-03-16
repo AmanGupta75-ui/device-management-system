@@ -1,15 +1,20 @@
 package com.device.dao;
 
-import com.device.model.Device;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.device.model.Device;
 
 public class DeviceDAO {
     private String jdbcURL = "jdbc:mysql://localhost:3306/device_db?useSSL=false";
     private String jdbcUsername = "root";
-    private String jdbcPassword = "password"; // update with your MySQL password
-
+    private String jdbcPassword = "";
     private static final String INSERT_DEVICE_SQL = "INSERT INTO devices (name, type, serial_number, status, last_maintained) VALUES (?, ?, ?, ?, ?);";
     private static final String SELECT_DEVICE_BY_ID = "SELECT id, name, type, serial_number, status, last_maintained FROM devices WHERE id = ?";
     private static final String SELECT_ALL_DEVICES = "SELECT * FROM devices";
