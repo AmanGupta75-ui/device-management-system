@@ -5,7 +5,6 @@ import com.device.model.Device;
 
 import java.io.IOException;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.util.List;
 
 import javax.servlet.RequestDispatcher;
@@ -33,35 +32,31 @@ public class DeviceServlet extends HttpServlet {
             throws ServletException, IOException {
         String action = request.getServletPath();
 
-        try {
-            switch (action) {
-                case "/new":
-                    showNewForm(request, response);
-                    break;
-                case "/insert":
-                    insertDevice(request, response);
-                    break;
-                case "/delete":
-                    deleteDevice(request, response);
-                    break;
-                case "/edit":
-                    showEditForm(request, response);
-                    break;
-                case "/update":
-                    updateDevice(request, response);
-                    break;
-                case "/list":
-                default:
-                    listDevice(request, response);
-                    break;
-            }
-        } catch (SQLException ex) {
-            throw new ServletException(ex);
+        switch (action) {
+            case "/new":
+                showNewForm(request, response);
+                break;
+            case "/insert":
+                insertDevice(request, response);
+                break;
+            case "/delete":
+                deleteDevice(request, response);
+                break;
+            case "/edit":
+                showEditForm(request, response);
+                break;
+            case "/update":
+                updateDevice(request, response);
+                break;
+            case "/list":
+            default:
+                listDevice(request, response);
+                break;
         }
     }
 
     private void listDevice(HttpServletRequest request, HttpServletResponse response)
-            throws SQLException, IOException, ServletException {
+            throws IOException, ServletException {
         List<Device> listDevice = deviceDAO.selectAllDevices();
         request.setAttribute("listDevice", listDevice);
         RequestDispatcher dispatcher = request.getRequestDispatcher("device-list.jsp");
@@ -75,8 +70,8 @@ public class DeviceServlet extends HttpServlet {
     }
 
     private void showEditForm(HttpServletRequest request, HttpServletResponse response)
-            throws SQLException, ServletException, IOException {
-        int id = Integer.parseInt(request.getParameter("id"));
+            throws ServletException, IOException {
+        String id = request.getParameter("id");
         Device existingDevice = deviceDAO.selectDevice(id);
         RequestDispatcher dispatcher = request.getRequestDispatcher("device-form.jsp");
         request.setAttribute("device", existingDevice);
@@ -84,7 +79,7 @@ public class DeviceServlet extends HttpServlet {
     }
 
     private void insertDevice(HttpServletRequest request, HttpServletResponse response)
-            throws SQLException, IOException {
+            throws IOException {
         String name = request.getParameter("name");
         String type = request.getParameter("type");
         String serialNumber = request.getParameter("serialNumber");
@@ -97,8 +92,8 @@ public class DeviceServlet extends HttpServlet {
     }
 
     private void updateDevice(HttpServletRequest request, HttpServletResponse response)
-            throws SQLException, IOException {
-        int id = Integer.parseInt(request.getParameter("id"));
+            throws IOException {
+        String id = request.getParameter("id");
         String name = request.getParameter("name");
         String type = request.getParameter("type");
         String serialNumber = request.getParameter("serialNumber");
@@ -111,8 +106,8 @@ public class DeviceServlet extends HttpServlet {
     }
 
     private void deleteDevice(HttpServletRequest request, HttpServletResponse response)
-            throws SQLException, IOException {
-        int id = Integer.parseInt(request.getParameter("id"));
+            throws IOException {
+        String id = request.getParameter("id");
         deviceDAO.deleteDevice(id);
         response.sendRedirect("list");
     }

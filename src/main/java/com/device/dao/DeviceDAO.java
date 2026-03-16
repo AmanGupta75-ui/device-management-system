@@ -1,113 +1,107 @@
 package com.device.dao;
 
-import java.sql.Connection;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
 import java.sql.Date;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.device.model.Device;
 
 public class DeviceDAO {
-    private String jdbcURL = "jdbc:mysql://localhost:3306/device_db?useSSL=false";
-    private String jdbcUsername = "root";
-    private String jdbcPassword = "";
-    private static final String INSERT_DEVICE_SQL = "INSERT INTO devices (name, type, serial_number, status, last_maintained) VALUES (?, ?, ?, ?, ?);";
-    private static final String SELECT_DEVICE_BY_ID = "SELECT id, name, type, serial_number, status, last_maintained FROM devices WHERE id = ?";
-    private static final String SELECT_ALL_DEVICES = "SELECT * FROM devices";
-    private static final String DELETE_DEVICE_SQL = "DELETE FROM devices WHERE id = ?;";
-    private static final String UPDATE_DEVICE_SQL = "UPDATE devices SET name = ?, type = ?, serial_number = ?, status = ?, last_maintained = ? WHERE id = ?;";
+    private static final String CONNECTION_STRING = "mongodb://localhost:27017";
+    private static final String DATABASE_NAME = "device_db";
+    private static final String COLLECTION_NAME = "devices";
 
-    public DeviceDAO() {}
-
-    protected Connection getConnection() {
-        Connection connection = null;
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            connection = DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return connection;
+    public DeviceDAO() {
     }
 
-    public void insertDevice(Device device) throws SQLException {
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(INSERT_DEVICE_SQL)) {
-            preparedStatement.setString(1, device.getName());
-            preparedStatement.setString(2, device.getType());
-            preparedStatement.setString(3, device.getSerialNumber());
-            preparedStatement.setString(4, device.getStatus());
-            preparedStatement.setDate(5, device.getLastMaintained());
-            preparedStatement.executeUpdate();
+    private MongoClient getMongoClient() {
+        return MongoClients.create(CONNECTION_STRING);
+    }
+
+    public void insertDevice(Device device) {
+        try (MongoClient mongoClient = getMongoClient()) {
+            MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
+            MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+            Document doc = new Document("name", device.getName())
+                    .append("type", device.getType())
+                    .append("serial_number", device.getSerialNumber())
+                    .append("status", device.getStatus())
+                    .append("last_maintained", device.getLastMaintained() != null ? device.getLastMaintained().toString() : null);
+
+            collection.insertOne(doc);
         }
     }
 
-    public Device selectDevice(int id) {
+    public Device selectDevice(String id) {
         Device device = null;
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(SELECT_DEVICE_BY_ID)) {
-            preparedStatement.setInt(1, id);
-            ResultSet rs = preparedStatement.executeQuery();
-            if (rs.next()) {
-                String name = rs.getString("name");
-                String type = rs.getString("type");
-                String serialNumber = rs.getString("serial_number");
-                String status = rs.getString("status");
-                Date lastMaintained = rs.getDate("last_maintained");
-                device = new Device(id, name, type, serialNumber, status, lastMaintained);
+        try (MongoClient mongoClient = getMongoClient()) {
+            MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
+            MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+            Document doc = collection.find(Filters.eq("_id", new ObjectId(id))).first();
+            if (doc != null) {
+                device = documentToDevice(doc);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
         return device;
     }
 
     public List<Device> selectAllDevices() {
         List<Device> devices = new ArrayList<>();
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(SELECT_ALL_DEVICES)) {
-            ResultSet rs = preparedStatement.executeQuery();
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String name = rs.getString("name");
-                String type = rs.getString("type");
-                String serialNumber = rs.getString("serial_number");
-                String status = rs.getString("status");
-                Date lastMaintained = rs.getDate("last_maintained");
-                devices.add(new Device(id, name, type, serialNumber, status, lastMaintained));
+        try (MongoClient mongoClient = getMongoClient()) {
+            MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
+            MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+            for (Document doc : collection.find()) {
+                devices.add(documentToDevice(doc));
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
         return devices;
     }
 
-    public boolean deleteDevice(int id) throws SQLException {
-        boolean rowDeleted;
-        try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement(DELETE_DEVICE_SQL)) {
-            statement.setInt(1, id);
-            rowDeleted = statement.executeUpdate() > 0;
+    public boolean deleteDevice(String id) {
+        try (MongoClient mongoClient = getMongoClient()) {
+            MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
+            MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+            return collection.deleteOne(Filters.eq("_id", new ObjectId(id))).getDeletedCount() > 0;
         }
-        return rowDeleted;
     }
 
-    public boolean updateDevice(Device device) throws SQLException {
-        boolean rowUpdated;
-        try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement(UPDATE_DEVICE_SQL)) {
-            statement.setString(1, device.getName());
-            statement.setString(2, device.getType());
-            statement.setString(3, device.getSerialNumber());
-            statement.setString(4, device.getStatus());
-            statement.setDate(5, device.getLastMaintained());
-            statement.setInt(6, device.getId());
-            rowUpdated = statement.executeUpdate() > 0;
+    public boolean updateDevice(Device device) {
+        try (MongoClient mongoClient = getMongoClient()) {
+            MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
+            MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+            Document doc = new Document("name", device.getName())
+                    .append("type", device.getType())
+                    .append("serial_number", device.getSerialNumber())
+                    .append("status", device.getStatus())
+                    .append("last_maintained", device.getLastMaintained() != null ? device.getLastMaintained().toString() : null);
+
+            return collection.updateOne(Filters.eq("_id", new ObjectId(device.getId())), 
+                    new Document("$set", doc)).getModifiedCount() > 0;
         }
-        return rowUpdated;
+    }
+
+    private Device documentToDevice(Document doc) {
+        ObjectId objectId = doc.getObjectId("_id");
+        String id = objectId != null ? objectId.toHexString() : null;
+        String name = doc.getString("name");
+        String type = doc.getString("type");
+        String serialNumber = doc.getString("serial_number");
+        String status = doc.getString("status");
+        String lastMaintainedStr = doc.getString("last_maintained");
+        Date lastMaintained = lastMaintainedStr != null ? Date.valueOf(lastMaintainedStr) : null;
+        return new Device(id, name, type, serialNumber, status, lastMaintained);
     }
 }
